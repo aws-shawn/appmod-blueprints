@@ -408,7 +408,15 @@ tasks:
             printf '{{.C_OK}}✓ ACK credentials valid.{{.C_RESET}}\n'
           fi
         fi
-        [ "$NEEDS_REFRESH" = "true" ] && task credentials:refresh || true
+        # Run from the platform root through the include namespace. A bare
+        # `task credentials:refresh` here runs this file as the ROOT Taskfile, so
+        # ROOT_DIR points at cluster-providers/kind-kro-ack, the ARGOCD_VERSION var
+        # cannot find gitops/addons/registry/core.yaml, and the task aborts before
+        # touching the secret. The old `|| true` then hid that, leaving ACK on
+        # expired credentials for the rest of the install.
+        if [ "$NEEDS_REFRESH" = "true" ]; then
+          ( cd "{{.ROOT_DIR}}" && task kind-kro-ack:credentials:refresh )
+        fi
 
   credentials:refresh:
     desc: Force-refresh AWS credentials secret
